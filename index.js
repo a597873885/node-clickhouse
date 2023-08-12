@@ -175,12 +175,6 @@ class NodeClickHouse {
     await this.client.command({ query: sql });
   
     let whereSql = " WHERE id = '" + uuidStr + "'"
-    if(tableName === 'Config' || tableName === 'config' || 
-       tableName === 'User' || tableName === 'user' || 
-       tableName === 'Message' || tableName === 'message' || 
-       tableName === 'Team' || tableName === 'team'){
-      whereSql = " WHERE dataId = '" + uuidStr + "'"
-    }
     // 查询
     let querySql = "select * from " + `${tableName}` + whereSql
     const res =  await NodeClickHouse.query(querySql)
