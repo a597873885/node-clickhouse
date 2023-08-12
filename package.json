@@ -1,0 +1,25 @@
+{
+  "name": "webfunny-node-clickhouse",
+  "version": "1.0.6",
+  "description": "node版click查询工具",
+  "main": "./index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/a597873885/node-clickhouse.git"
+  },
+  "keywords": [
+    "node-clickhouse"
+  ],
+  "author": "一步一个脚印一个坑",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/a597873885/node-clickhouse/issues"
+  },
+  "homepage": "https://github.com/a597873885/node-clickhouse#readme",
+  "dependencies": {
+    "node-uuid": "^1.4.8"
+  }
+}
