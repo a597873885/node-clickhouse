@@ -7,20 +7,21 @@ class NodeClickHouse {
     client,
     showSql
   }) {
-    this.schema = require(schemaPath)
+    this.schema = schemaPath ? require(schemaPath) : ""
     this.client = client
     this.showSql = showSql
-  }
-  static QueryTypes = {
-    SELECT: "SELECT",
-    INSERT: "INSERT",
-    DELETE: "DELETE"
+    this.QueryTypes = {
+      SELECT: "SELECT",
+      INSERT: "INSERT",
+      DELETE: "DELETE"
+    }
   }
   /**
    * 查询sql
    * 如果没有结果，返回空数组
    */
-  static async query(sql) {
+  async query(sql) {
+    const start = new Date().getTime()
     // 是否打印sql
     this.showSql && console.log("查询：".blue, sql)
     const rows = await this.client.query({
@@ -30,21 +31,28 @@ class NodeClickHouse {
       console.error(e)
       
     })
+    const end = new Date().getTime()
+    util.uploadQueryTime(sql, end - start)
     if (!rows) return []
+    
     return await rows.json()
   }
 
   /**
    * 执行sql
    */
-  static async execSql(sql) {
+  async execSql(sql) {
+    const start = new Date().getTime()
     // 是否打印sql
     this.showSql && console.log("执行sql：".blue, sql)
-    return await this.client.command({ query: sql })
+    const res = await this.client.command({ query: sql })
+    const end = new Date().getTime()
+    util.uploadQueryTime(sql, end - start)
+    return res
   }
 
 
-  static checkColumnType(structure, columnName) {
+  checkColumnType(structure, columnName) {
     try {
       let typeStr = ""
       const type = structure[columnName].type
@@ -108,7 +116,7 @@ class NodeClickHouse {
     `
     // 是否打印sql
     this.showSql && console.log("建表：".green, sql)
-    return await this.client.command({ query: sql })
+    return await this.execSql(sql)
   }
 
   /**
@@ -124,10 +132,10 @@ class NodeClickHouse {
       if (data[key]) {
         const val = data[key]
         keySql += `${key}, `
-        valSql += NodeClickHouse.checkColumnType(structure, key) === "number" ? `${val}, ` : `'${val}', `
+        valSql += this.checkColumnType(structure, key) === "number" ? `${val}, ` : `'${val}', `
       } else if (key === "createdAt" || key === "updatedAt") {
         keySql += `${key}, `
-        valSql += NodeClickHouse.checkColumnType(structure, key) === "number" ? `0, ` : `'${columnInfo.get()}', `
+        valSql += this.checkColumnType(structure, key) === "number" ? `0, ` : `'${columnInfo.get()}', `
       } else if (structure[key].type === DataTypes.UUID) {
         keySql += `${key}, `
         valSql += `generateUUIDv4(), `
@@ -136,10 +144,9 @@ class NodeClickHouse {
     keySql = "(" + keySql.substring(0, keySql.lastIndexOf(", ")) + ")"
     valSql = "(" + valSql.substring(0, valSql.lastIndexOf(", ")) + ")"
     const sql = `INSERT INTO ${tableName} ${keySql} VALUES ${valSql}`
-    // return await NodeClickHouse.query(sql, { type: NodeClickHouse.QueryTypes.INSERT})
     // 是否打印sql
     this.showSql && console.log("插入：".cyan, sql)
-    return await this.client.command({ query: sql })
+    return await this.execSql(sql)
   }
   
   /**
@@ -156,10 +163,10 @@ class NodeClickHouse {
       const val = data[key]
       if (val) {
         keySql += `${key}, `
-        valSql += NodeClickHouse.checkColumnType(structure, key) === "number" ? `${val}, ` : `'${val}', `
+        valSql += this.checkColumnType(structure, key) === "number" ? `${val}, ` : `'${val}', `
       } else if (key === "createdAt" || key === "updatedAt") {
         keySql += `${key}, `
-        valSql += NodeClickHouse.checkColumnType(structure, key) === "number" ? `0, ` : `'${columnInfo.get()}', `
+        valSql += this.checkColumnType(structure, key) === "number" ? `0, ` : `'${columnInfo.get()}', `
       } else if (structure[key].type === DataTypes.UUID) {
         keySql += `${key}, `
         // valSql += `generateUUIDv4(), `
@@ -169,15 +176,14 @@ class NodeClickHouse {
     keySql = "(" + keySql.substring(0, keySql.lastIndexOf(", ")) + ")"
     valSql = "(" + valSql.substring(0, valSql.lastIndexOf(", ")) + ")"
     const sql = `INSERT INTO ${tableName} ${keySql} VALUES ${valSql}`
-    // return await NodeClickHouse.query(sql, { type: NodeClickHouse.QueryTypes.INSERT})
     // 是否打印sql
     this.showSql && console.log("插入：".cyan, sql)
-    await this.client.command({ query: sql });
+    await this.execSql(sql);
   
     let whereSql = " WHERE id = '" + uuidStr + "'"
     // 查询
     let querySql = "select * from " + `${tableName}` + whereSql
-    const res =  await NodeClickHouse.query(querySql)
+    const res =  await this.query(querySql)
     if (res) {
       return res[0]
     } else {
@@ -195,7 +201,7 @@ class NodeClickHouse {
     let setSql = ""
     fields.forEach((fieldName) => {
       if (structure[fieldName]) {
-        const valSql = NodeClickHouse.checkColumnType(structure, fieldName) === "number" ? data[fieldName] : `'${data[fieldName]}'`
+        const valSql = this.checkColumnType(structure, fieldName) === "number" ? data[fieldName] : `'${data[fieldName]}'`
         setSql += `${fieldName}=${valSql}, `
       }
     })
@@ -204,7 +210,7 @@ class NodeClickHouse {
     let whereSql = where ? " WHERE 1=1 " : ""
     for (let key in where) {
       if (structure[key]) {
-        const valSql = NodeClickHouse.checkColumnType(structure, key) === "number" ? where[key] : `'${where[key]}'`
+        const valSql = this.checkColumnType(structure, key) === "number" ? where[key] : `'${where[key]}'`
         whereSql += `AND ${key}=${valSql} `
       }
     }
@@ -215,7 +221,7 @@ class NodeClickHouse {
     `
     // 是否打印sql
     this.showSql && console.log("更新：".red, updateSql)
-    return await this.client.command({ query: updateSql })
+    return await this.execSql(updateSql)
   }
 
   /**
@@ -228,7 +234,7 @@ class NodeClickHouse {
     let setSql = ""
     fields.forEach((fieldName) => {
       if (structure[fieldName]) {
-        const valSql = NodeClickHouse.checkColumnType(structure, fieldName) === "number" ? data[fieldName] : `'${data[fieldName]}'`
+        const valSql = this.checkColumnType(structure, fieldName) === "number" ? data[fieldName] : `'${data[fieldName]}'`
         setSql += `${fieldName}=${valSql}, `
       }
     })
@@ -237,7 +243,7 @@ class NodeClickHouse {
     let whereSql = where ? " WHERE 1=1 " : ""
     for (let key in where) {
       if (structure[key]) {
-        const valSql = NodeClickHouse.checkColumnType(structure, key) === "number" ? where[key] : `'${where[key]}'`
+        const valSql = this.checkColumnType(structure, key) === "number" ? where[key] : `'${where[key]}'`
         whereSql += `AND ${key}=${valSql} `
       }
     }
@@ -251,7 +257,7 @@ class NodeClickHouse {
     if (queryRes.length) {
       // 是否打印sql
       this.showSql && console.log("更新：".red, updateSql)
-      return await this.client.command({ query: updateSql })
+      return await this.execSql(updateSql)
     } else {
       return await this.create({...data, ...where})
     }
@@ -267,12 +273,12 @@ class NodeClickHouse {
 
     let whereSql = where ? " WHERE 1=1 " : ""
     for (let key in where) {
-      const valSql = NodeClickHouse.checkColumnType(this.schema.Columns.structure, key) === "number" ? where[key] : `'${where[key]}'`
+      const valSql = this.checkColumnType(this.schema.Columns.structure, key) === "number" ? where[key] : `'${where[key]}'`
       whereSql += `AND ${key}=${valSql} `
     }
     
     const sql = `SELECT * from ${tableName} ${whereSql}`
-    const res =  await NodeClickHouse.query(sql)
+    const res =  await this.query(sql)
     if (res) {
       return res[0]
     } else {
@@ -289,12 +295,12 @@ class NodeClickHouse {
 
     let whereSql = where ? " WHERE 1=1 " : ""
     for (let key in where) {
-      const valSql = NodeClickHouse.checkColumnType(this.schema.Columns.structure, key) === "number" ? where[key] : `'${where[key]}'`
+      const valSql = this.checkColumnType(this.schema.Columns.structure, key) === "number" ? where[key] : `'${where[key]}'`
       whereSql += `AND ${key}=${valSql}`
     }
     
     const sql = `delete from ${tableName} ${whereSql}`
-    return await NodeClickHouse.query(sql)
+    return await this.execSql(sql)
   }
 }
 module.exports = NodeClickHouse

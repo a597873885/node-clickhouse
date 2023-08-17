@@ -1,6 +1,6 @@
 {
   "name": "webfunny-node-clickhouse",
-  "version": "1.0.7",
+  "version": "1.0.20",
   "description": "node版click查询工具",
   "main": "./index.js",
   "scripts": {
@@ -20,6 +20,8 @@
   },
   "homepage": "https://github.com/a597873885/node-clickhouse#readme",
   "dependencies": {
-    "node-uuid": "^1.4.8"
+    "node-fetch": "^2.6.7",
+    "node-uuid": "^1.4.8",
+    "nodejs-base64": "^2.0.0"
   }
 }
